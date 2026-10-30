@@ -1,0 +1,114 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Fix.Bancos.Desktop"
+        xmlns:sys="using:System"
+        x:Class="Fix.Bancos.Desktop.JanelaPrincipal"
+        x:DataType="local:JanelaVm"
+        Title="FIX bancos"
+        Icon="/Assets/fix-bancos.ico"
+        Width="760" Height="820" MinWidth="560" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Fundo}">
+
+  <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="24,20,24,16">
+
+    <!-- Cabeçalho -->
+    <Grid ColumnDefinitions="Auto,*">
+      <Image Source="/Assets/fix-bancos.png" Width="40" Height="40" Margin="0,0,14,0" VerticalAlignment="Center" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+        <TextBlock Text="FIX bancos" FontSize="22" FontWeight="SemiBold" />
+        <TextBlock Classes="secundario" TextWrapping="Wrap"
+                   Text="Acesso aos bancos dos ambientes pelo DBeaver, com o seu login da FIX no navegador. Tudo o que você faz fica registrado com o seu e-mail." />
+      </StackPanel>
+    </Grid>
+
+    <!-- Senha local -->
+    <Border Grid.Row="1" Classes="cartao" Margin="0,20,0,0" Background="{DynamicResource SenhaFundo}">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="secundario" FontSize="12" Text="SENHA LOCAL DESTA SESSÃO" />
+          <SelectableTextBlock Text="{Binding SenhaLocal}" FontFamily="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"
+                               FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource Destaque}" />
+          <TextBlock Classes="secundario" FontSize="12" TextWrapping="Wrap"
+                     Text="Vai no campo senha do DBeaver. Muda a cada vez que o FIX bancos abre; não compartilhe." />
+        </StackPanel>
+        <Button Grid.Column="1" Content="Copiar" Command="{Binding CopiarSenha}" VerticalAlignment="Center" Padding="16,8" />
+      </Grid>
+    </Border>
+
+    <!-- Ambientes -->
+    <TextBlock Grid.Row="2" Classes="secao" Text="AMBIENTES" />
+    <ItemsControl Grid.Row="3" ItemsSource="{Binding Ambientes}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="local:AmbienteVm">
+          <Border Classes="cartao" Margin="0,0,0,10">
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+              <Ellipse Width="11" Height="11" Fill="{Binding Cor}" VerticalAlignment="Center" Margin="0,0,12,0" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Nome}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Classes="secundario" Text="{Binding Permissao}" VerticalAlignment="Center" />
+                <TextBlock Classes="secundario" Text="·" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Rotulo}" Foreground="{Binding Cor}" VerticalAlignment="Center" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Grid.RowSpan="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Button Content="Copiar URL" Command="{Binding CopiarUrl}" IsVisible="{Binding Ligado}"
+                        ToolTip.Tip="URL JDBC para colar no DBeaver (Nova conexão → PostgreSQL → URL)" />
+                <Button Content="Entrar" Command="{Binding EntrarDeNovo}" IsVisible="{Binding PodeEntrarDeNovo}"
+                        ToolTip.Tip="Abre o navegador para o login de novo" />
+                <Button Content="{Binding Acao}" Command="{Binding Alternar}" MinWidth="96"
+                        HorizontalContentAlignment="Center" Classes.principal="{Binding !Ligado}" />
+              </StackPanel>
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="secundario" Text="{Binding Detalhe}"
+                         TextWrapping="Wrap" Margin="0,6,0,0" />
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+
+    <!-- Como conectar -->
+    <Expander Grid.Row="4" Header="Como configurar no DBeaver" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="4,0">
+        <Grid.Styles>
+          <Style Selector="TextBlock">
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+          </Style>
+        </Grid.Styles>
+        <TextBlock Grid.Row="0" Classes="secundario" Text="Conexão" Margin="0,3,24,3" />
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="Nova conexão → PostgreSQL (ou cole a URL do botão Copiar URL)" />
+        <TextBlock Grid.Row="1" Classes="secundario" Text="Host e porta" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="localhost · dev 15432, qa 15433, prod 15434" />
+        <TextBlock Grid.Row="2" Classes="secundario" Text="Database" />
+        <TextBlock Grid.Row="2" Grid.Column="1" Text="fix_core, com “Show all databases” marcado para ver os outros" />
+        <TextBlock Grid.Row="3" Classes="secundario" Text="Usuário" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Text="qualquer um (quem vale é o seu login no navegador)" />
+        <TextBlock Grid.Row="4" Classes="secundario" Text="Senha" />
+        <TextBlock Grid.Row="4" Grid.Column="1" Text="a senha local acima (atualize no DBeaver sempre que o FIX bancos abrir)" />
+        <TextBlock Grid.Row="5" Classes="secundario" Text="SSL" />
+        <TextBlock Grid.Row="5" Grid.Column="1" Text="desligado: o trecho local não sai da máquina e o FIX bancos cifra até o servidor" />
+      </Grid>
+    </Expander>
+
+    <!-- Atividade -->
+    <Grid Grid.Row="5" RowDefinitions="Auto,*">
+      <TextBlock Classes="secao" Text="ATIVIDADE" />
+      <Border Grid.Row="1" Classes="cartao" Padding="12,8">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Atividade}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="sys:String">
+                <SelectableTextBlock Text="{Binding}" FontFamily="Cascadia Mono,Consolas,Menlo,DejaVu Sans Mono,monospace"
+                                     FontSize="12" TextWrapping="Wrap" Margin="0,2" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <!-- Rodapé -->
+    <TextBlock Grid.Row="6" Classes="secundario" FontSize="12" Margin="2,10,0,0"
+               Text="{Binding Aviso, FallbackValue='', TargetNullValue='Fechar a janela encerra as conexões abertas.'}" />
+  </Grid>
+</Window>

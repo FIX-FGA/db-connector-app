@@ -1,0 +1,81 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Fix.Bancos.Desktop.App"
+             Name="FIX bancos"
+             RequestedThemeVariant="Default">
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Fundo" Color="#F4F5F7" />
+          <SolidColorBrush x:Key="Cartao" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="CartaoBorda" Color="#E1E4E8" />
+          <SolidColorBrush x:Key="TextoSecundario" Color="#5B6270" />
+          <SolidColorBrush x:Key="Destaque" Color="#175CD3" />
+          <SolidColorBrush x:Key="SenhaFundo" Color="#EEF4FF" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="#F7F8FA" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="#F0F2F5" />
+          <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="#E1E4E8" />
+          <SolidColorBrush x:Key="ExpanderContentBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="ExpanderContentBorderBrush" Color="#E1E4E8" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Fundo" Color="#16181D" />
+          <SolidColorBrush x:Key="Cartao" Color="#1F2229" />
+          <SolidColorBrush x:Key="CartaoBorda" Color="#2E323B" />
+          <SolidColorBrush x:Key="TextoSecundario" Color="#A3A9B5" />
+          <SolidColorBrush x:Key="Destaque" Color="#7EAAF5" />
+          <SolidColorBrush x:Key="SenhaFundo" Color="#1C2A44" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="#1F2229" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="#252932" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="#2A2E38" />
+          <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="#2E323B" />
+          <SolidColorBrush x:Key="ExpanderContentBackground" Color="#1F2229" />
+          <SolidColorBrush x:Key="ExpanderContentBorderBrush" Color="#2E323B" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Border.cartao">
+      <Setter Property="Background" Value="{DynamicResource Cartao}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource CartaoBorda}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style Selector="TextBlock.secao">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextoSecundario}" />
+      <Setter Property="Margin" Value="2,22,0,8" />
+    </Style>
+    <Style Selector="TextBlock.secundario, SelectableTextBlock.secundario">
+      <Setter Property="Foreground" Value="{DynamicResource TextoSecundario}" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Expander">
+      <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <!-- Ação principal (Conectar): azul. -->
+    <Style Selector="Button.principal">
+      <Setter Property="Background" Value="#175CD3" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.principal:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#1849A9" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.principal:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#194185" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </Application.Styles>
+</Application>

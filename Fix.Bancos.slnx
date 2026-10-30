@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Fix.Bancos/Fix.Bancos.csproj" />
+    <Project Path="src/Fix.Bancos.Cli/Fix.Bancos.Cli.csproj" />
+    <Project Path="src/Fix.Bancos.Desktop/Fix.Bancos.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fix.Bancos.Tests/Fix.Bancos.Tests.csproj" />
+  </Folder>
+</Solution>

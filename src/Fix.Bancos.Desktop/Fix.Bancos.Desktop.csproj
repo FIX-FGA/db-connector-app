@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- FIX bancos: o aplicativo (janela) de quem acessa os bancos pelo DBeaver. Avalonia: Windows, Linux e macOS.
+       Publicação (CI): um executável só, com o runtime dentro:
+       dotnet publish -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Fix.Bancos.Desktop</RootNamespace>
+    <AssemblyName>fix-bancos</AssemblyName>
+    <Product>FIX bancos</Product>
+    <Company>FIX-FGA</Company>
+    <Description>Acesso aos bancos do FIX pelo DBeaver com o login no navegador</Description>
+    <ApplicationIcon>Assets\fix-bancos.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- No executável único, as bibliotecas nativas (Skia, HarfBuzz) vão dentro e são extraídas na primeira execução. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fix.Bancos\Fix.Bancos.csproj" />
+  </ItemGroup>
+
+</Project>

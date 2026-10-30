@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- fix-bancos-cli: o FIX bancos sem janela (Linux sem desktop, scripts). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Fix.Bancos.Cli</RootNamespace>
+    <AssemblyName>fix-bancos-cli</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fix.Bancos\Fix.Bancos.csproj" />
+  </ItemGroup>
+
+</Project>

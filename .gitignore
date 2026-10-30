@@ -1,0 +1,20 @@
+# .NET
+[Bb]in/
+[Oo]bj/
+out/
+dist/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/*
+TestResults/
+*.binlog
+# Certificados e segredos nunca entram no repositório
+*.pfx
+*.p12
+*.snk
+.env
+# Sistema
+.DS_Store
+Thumbs.db

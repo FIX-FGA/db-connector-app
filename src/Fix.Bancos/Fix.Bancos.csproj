@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Núcleo do FIX bancos (login no navegador, senha local, porta local para o DBeaver), usado pelo aplicativo
+       (Fix.Bancos.Desktop) e pela linha de comando (Fix.Bancos.Cli). -->
+  <PropertyGroup>
+    <RootNamespace>Fix.Bancos</RootNamespace>
+  </PropertyGroup>
+
+</Project>

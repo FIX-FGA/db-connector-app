@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- O CI publica com -p:Version=1.0.<número do build>. -->
+    <Version>1.0.0</Version>
+    <Authors>FIX-FGA</Authors>
+    <Copyright>Copyright (c) 2026 FIX-FGA. MIT.</Copyright>
+  </PropertyGroup>
+</Project>
