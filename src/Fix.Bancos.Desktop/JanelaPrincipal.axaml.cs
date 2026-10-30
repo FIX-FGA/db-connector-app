@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 
@@ -36,6 +37,7 @@ public partial class JanelaPrincipal : Window
 
         Opened += (_, _) =>
         {
+            CaberNaTela();
             foreach (var ambiente in ligarAoAbrir)
                 _vm.Ambientes.FirstOrDefault(a => a.Nome == ambiente.Nome)?.Alternar.Execute(null);
         };
@@ -50,6 +52,26 @@ public partial class JanelaPrincipal : Window
             _http.Dispose();
             Close();
         };
+    }
+
+    /// <summary>
+    /// Em tela menor que o tamanho padrão, a janela nasceria com o topo (cabeçalho e senha local) fora da tela:
+    /// encolhe para a área útil do monitor e centraliza.
+    /// </summary>
+    private void CaberNaTela()
+    {
+        if (Screens.ScreenFromWindow(this) is not { } tela) return;
+        var area = tela.WorkingArea;
+        var escala = tela.Scaling;
+        const double Folga = 24;
+        var largura = Math.Min(Width, area.Width / escala - Folga);
+        var altura = Math.Min(Height, area.Height / escala - Folga - 32); // 32: barra de título
+        if (largura == Width && altura == Height && Position.Y >= area.Y) return;
+        Width = largura;
+        Height = altura;
+        Position = new PixelPoint(
+            area.X + (int)((area.Width - largura * escala) / 2),
+            area.Y + (int)Math.Max(0, (area.Height - (altura + 32) * escala) / 2));
     }
 
     private async Task CopiarAsync(string texto)
