@@ -40,7 +40,7 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
         }
         catch (SocketException e)
         {
-            throw new InvalidOperationException($"a porta {ambiente.PortaLocal} está em uso: já há um FIX bancos aberto? ({e.Message})", e);
+            throw new InvalidOperationException($"A porta {ambiente.PortaLocal} já está em uso: feche o outro FIX bancos (ou o fix-bancos antigo) e conecte de novo.", e);
         }
         var ligacao = new Ligacao(this, ambiente, escuta);
         _ligados[ambiente.Nome] = ligacao;
