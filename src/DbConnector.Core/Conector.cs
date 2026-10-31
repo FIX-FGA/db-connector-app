@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
-namespace Fix.Bancos;
+namespace DbConnector;
 
 public enum Estado { Desligado, AguardandoLogin, Conectado, Falhou }
 
@@ -40,7 +40,7 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
         }
         catch (SocketException e)
         {
-            throw new InvalidOperationException($"A porta {ambiente.PortaLocal} já está em uso: feche o outro FIX bancos (ou o fix-bancos antigo) e conecte de novo.", e);
+            throw new InvalidOperationException($"A porta {ambiente.PortaLocal} já está em uso: feche o outro {_opcoes.NomeDoAplicativo} (ou o programa que a usa) e conecte de novo.", e);
         }
         var ligacao = new Ligacao(this, ambiente, escuta);
         _ligados[ambiente.Nome] = ligacao;

@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 
-namespace Fix.Bancos.Desktop;
+namespace DbConnector.Desktop;
 
 public partial class JanelaPrincipal : Window
 {
@@ -13,15 +13,15 @@ public partial class JanelaPrincipal : Window
     private bool _encerrado;
 
     // O designer do Avalonia precisa de um construtor sem parâmetros.
-    public JanelaPrincipal() : this(App.Opcoes, [])
+    public JanelaPrincipal() : this(App.Opcoes, [], null)
     {
     }
 
-    public JanelaPrincipal(Opcoes opcoes, IReadOnlyList<Ambiente> ligarAoAbrir)
+    public JanelaPrincipal(Opcoes opcoes, IReadOnlyList<Ambiente> ligarAoAbrir, string? erroDeConfiguracao)
     {
         InitializeComponent();
         _conector = new Conector(opcoes, _http, new SenhaLocal(opcoes.SenhaLocal));
-        _vm = new JanelaVm(_conector, opcoes.Ambientes, CopiarAsync);
+        _vm = new JanelaVm(_conector, opcoes, erroDeConfiguracao, CopiarAsync);
         DataContext = _vm;
 
         // Os eventos do conector vêm de outras threads.

@@ -1,5 +1,7 @@
-# db-connector-app (FIX bancos): build e testes em todo push e PR; executáveis de cada sistema como artefato; na master, o executável do
-# Windows é assinado pela SignPath Foundation (quando os secrets existem) e tudo vai para uma release.
+# db-connector-app (DB Connector): build e testes em todo push e PR; executáveis de cada sistema como artefato; na master, o
+# executável do Windows é assinado pela SignPath Foundation (quando os secrets existem) e tudo vai para uma release.
+# A configuração de quem distribui (nome, emissor OIDC, ambientes) vem da variável DB_CONNECTOR_CONFIG (JSON, em
+# Settings → Secrets and variables → Actions → Variables) e vai embutida nos executáveis; sem ela, saem sem ambientes.
 name: ci
 
 on:
@@ -28,9 +30,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore Fix.Bancos.slnx
-      - run: dotnet build Fix.Bancos.slnx --no-restore -c Release
-      - run: dotnet test Fix.Bancos.slnx --no-build -c Release
+      - run: dotnet restore DbConnector.slnx
+      - run: dotnet build DbConnector.slnx --no-restore -c Release
+      - run: dotnet test DbConnector.slnx --no-build -c Release
 
   # Um executável por sistema, com o runtime dentro. O do Windows sai num runner Windows: só lá o SDK grava o ícone e
   # a versão no .exe.
@@ -39,19 +41,31 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: windows-latest, rid: win-x64, nome: fix-bancos-windows-x64.exe, origem: fix-bancos.exe }
-          - { os: ubuntu-latest, rid: linux-x64, nome: fix-bancos-linux-x64, origem: fix-bancos }
-          - { os: ubuntu-latest, rid: osx-arm64, nome: fix-bancos-macos-arm64, origem: fix-bancos }
+          - { os: windows-latest, rid: win-x64, nome: db-connector-windows-x64.exe, origem: db-connector.exe }
+          - { os: ubuntu-latest, rid: linux-x64, nome: db-connector-linux-x64, origem: db-connector }
+          - { os: ubuntu-latest, rid: osx-arm64, nome: db-connector-macos-arm64, origem: db-connector }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      # Configuração de quem distribui: conferida aqui (JSON válido) e embutida no executável.
+      - name: Configuração (DB_CONNECTOR_CONFIG)
+        shell: bash
+        env:
+          CONFIG: ${{ vars.DB_CONNECTOR_CONFIG }}
+        run: |
+          if [ -z "$CONFIG" ]; then
+            echo "::warning::sem a variável DB_CONNECTOR_CONFIG: os executáveis saem sem ambientes (usam --config)"
+            exit 0
+          fi
+          printf '%s' "$CONFIG" > src/DbConnector.Core/config.json
+          jq -r '"configuração: \(.nome) - ambientes: \([.ambientes[]?.nome] | join(", "))"' src/DbConnector.Core/config.json
       - name: Publica o aplicativo
         shell: bash
         run: |
-          dotnet publish src/Fix.Bancos.Desktop/Fix.Bancos.Desktop.csproj -c Release -r ${{ matrix.rid }} -o out \
+          dotnet publish src/DbConnector.Desktop/DbConnector.Desktop.csproj -c Release -r ${{ matrix.rid }} -o out \
             -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -p:DebugType=none \
             -p:Version=1.0.${{ github.run_number }}
           mkdir dist
@@ -60,10 +74,10 @@ jobs:
         if: matrix.rid == 'linux-x64'
         shell: bash
         run: |
-          dotnet publish src/Fix.Bancos.Cli/Fix.Bancos.Cli.csproj -c Release -r linux-x64 -o out-cli \
+          dotnet publish src/DbConnector.Cli/DbConnector.Cli.csproj -c Release -r linux-x64 -o out-cli \
             -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -p:DebugType=none \
             -p:Version=1.0.${{ github.run_number }}
-          cp out-cli/fix-bancos-cli dist/fix-bancos-cli-linux-x64
+          cp out-cli/db-connector-cli dist/db-connector-cli-linux-x64
       - uses: actions/upload-artifact@v4
         id: artefato
         with:
@@ -88,7 +102,7 @@ jobs:
         run: echo "tem=$([ -n "$TOKEN" ] && echo sim || echo nao)" >> "$GITHUB_OUTPUT"
       - name: Sem SignPath
         if: steps.segredo.outputs.tem != 'sim'
-        run: echo "::warning::sem SIGNPATH_API_TOKEN, o fix-bancos-windows-x64.exe vai sem assinatura"
+        run: echo "::warning::sem SIGNPATH_API_TOKEN, o db-connector-windows-x64.exe vai sem assinatura"
       - name: Id do artefato win-x64
         if: steps.segredo.outputs.tem == 'sim'
         id: artefato
@@ -137,5 +151,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           versao="v1.0.${GITHUB_RUN_NUMBER}"
-          gh release create "$versao" dist/* --repo "$GITHUB_REPOSITORY" --title "FIX bancos $versao" --latest \
-            --notes "FIX bancos: acesso aos bancos do FIX pelo DBeaver com o login no navegador. Windows: fix-bancos-windows-x64.exe. Confira o SHA256SUMS. Code signing policy: https://github.com/${GITHUB_REPOSITORY}#code-signing-policy"
+          gh release create "$versao" dist/* --repo "$GITHUB_REPOSITORY" --title "DB Connector $versao" --latest \
+            --notes "DB Connector: proxy local de SSO (OIDC) para bancos PostgreSQL, para usar com DBeaver e outros aplicativos SQL. Windows: db-connector-windows-x64.exe. Confira o SHA256SUMS. Code signing policy: https://github.com/${GITHUB_REPOSITORY}#code-signing-policy"

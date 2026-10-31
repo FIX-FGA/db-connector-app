@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Avalonia.Media;
 
-namespace Fix.Bancos.Desktop;
+namespace DbConnector.Desktop;
 
 public abstract class Observavel : INotifyPropertyChanged
 {
@@ -55,10 +55,22 @@ public sealed class JanelaVm : Observavel
     private const int LimiteAtividade = 500;
     private string? _aviso;
 
-    public JanelaVm(Conector conector, IEnumerable<Ambiente> ambientes, Func<string, Task> copiar)
+    public JanelaVm(Conector conector, Opcoes opcoes, string? erroDeConfiguracao, Func<string, Task> copiar)
     {
+        var config = opcoes.Config;
+        Nome = config.Nome;
+        Descricao = config.DescricaoOuPadrao;
         SenhaLocal = conector.SenhaLocal.Valor;
-        Ambientes = [.. ambientes.Select(a => new AmbienteVm(a, conector, this, copiar))];
+        Ambientes = [.. config.AmbientesEfetivos.Select(a => new AmbienteVm(a, conector, this, copiar))];
+        Portas = string.Join(", ", config.AmbientesEfetivos.Select(a => $"{a.Nome} {a.PortaLocal}"));
+        Banco = config.AmbientesEfetivos.Select(a => a.BancoPadrao).Distinct().ToList() is [{ } unico]
+            ? $"{unico}, com “Show all databases” marcado para ver os outros"
+            : "o database que você quer abrir (“Show all databases” mostra os outros)";
+        SemAmbientes = erroDeConfiguracao is not null
+            ? $"Configuração inválida: {erroDeConfiguracao}"
+            : Ambientes.Count == 0
+                ? "Nenhum ambiente configurado. Este build não traz configuração: abra com --config <arquivo> (veja o README do db-connector-app)."
+                : null;
         CopiarSenha = new Comando(async () =>
         {
             await copiar(SenhaLocal);
@@ -66,6 +78,13 @@ public sealed class JanelaVm : Observavel
         });
     }
 
+    public string Nome { get; }
+    public string Descricao { get; }
+    /// <summary>Portas locais, para o guia ("dev 15432, qa 15433").</summary>
+    public string Portas { get; }
+    public string Banco { get; }
+    /// <summary>Aviso no lugar dos ambientes quando não há nenhum (ou a configuração é inválida).</summary>
+    public string? SemAmbientes { get; }
     public string SenhaLocal { get; }
     public IReadOnlyList<AmbienteVm> Ambientes { get; }
     public ObservableCollection<string> Atividade { get; } = [];

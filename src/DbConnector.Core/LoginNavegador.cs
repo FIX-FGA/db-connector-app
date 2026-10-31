@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Web;
 
-namespace Fix.Bancos;
+namespace DbConnector;
 
 /// <summary>Tokens de um login; <see cref="SessaoAte"/> é até quando o Keycloak renova sem abrir o navegador.</summary>
 public sealed record Tokens(string AccessToken, string? RefreshToken, DateTimeOffset ExpiraEm, DateTimeOffset? SessaoAte = null)
@@ -96,7 +96,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
         return new Tokens(access, refresh, expira, sessao) { Email = EmailDo(access) };
     }
 
-    private static async Task<string> EsperarRetornoAsync(TcpListener escuta, string estado, CancellationToken ct)
+    private async Task<string> EsperarRetornoAsync(TcpListener escuta, string estado, CancellationToken ct)
     {
         while (true)
         {
@@ -113,7 +113,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
             var query = HttpUtility.ParseQueryString(new Uri("http://127.0.0.1" + caminho).Query);
             if (query["state"] != estado)
             {
-                await ResponderAsync(stream, 400, "Login de outra tentativa: volte ao FIX bancos e tente de novo.", ct);
+                await ResponderAsync(stream, 400, $"Login de outra tentativa: volte ao {opcoes.NomeDoAplicativo} e tente de novo.", ct);
                 continue;
             }
             if (query["error"] is { } erro)
@@ -126,10 +126,10 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
         }
     }
 
-    private static async Task ResponderAsync(Stream stream, int status, string texto, CancellationToken ct)
+    private async Task ResponderAsync(Stream stream, int status, string texto, CancellationToken ct)
     {
         var corpo = Encoding.UTF8.GetBytes(
-            $"<!doctype html><meta charset=utf-8><title>FIX · bancos</title><body style=\"font-family:system-ui;margin:3rem\"><h2>FIX · bancos</h2><p>{WebUtility.HtmlEncode(texto)}</p>");
+            $"<!doctype html><meta charset=utf-8><title>{WebUtility.HtmlEncode(opcoes.NomeDoAplicativo)}</title><body style=\"font-family:system-ui;margin:3rem\"><h2>{WebUtility.HtmlEncode(opcoes.NomeDoAplicativo)}</h2><p>{WebUtility.HtmlEncode(texto)}</p>");
         var cabecalho = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {corpo.Length}\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(cabecalho, ct);
         await stream.WriteAsync(corpo, ct);

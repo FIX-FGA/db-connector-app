@@ -1,7 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Fix.Bancos.Desktop.App"
-             Name="FIX bancos"
+             x:Class="DbConnector.Desktop.App"
+             Name="DB Connector"
              RequestedThemeVariant="Default">
 
   <Application.Resources>
