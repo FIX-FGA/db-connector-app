@@ -6,6 +6,8 @@
     <RootNamespace>Fix.Bancos.Cli</RootNamespace>
     <AssemblyName>fix-bancos-cli</AssemblyName>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <Product>FIX bancos</Product>
+    <Description>FIX bancos (linha de comando): acesso aos bancos do FIX pelo DBeaver com o login no navegador</Description>
   </PropertyGroup>
 
   <ItemGroup>
