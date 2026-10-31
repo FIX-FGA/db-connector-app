@@ -19,5 +19,5 @@ TestResults/
 .DS_Store
 Thumbs.db
 
-# Configuração de quem distribui (gerada pelo CI a partir de DB_CONNECTOR_CONFIG)
-src/DbConnector.Core/config.json
+# Saída do instalador
+instalador/saida/

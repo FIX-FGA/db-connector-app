@@ -6,74 +6,110 @@ namespace DbConnector.Tests;
 
 public class ConectorTests
 {
-    private const string Exemplo = """
-        {
-          // comentários e vírgula sobrando são aceitos
-          "nome": "ACME bancos",
-          "emissor": "https://sso.acme.test/realms/interno/",
-          "bancoPadrao": "app",
-          "ambientes": [
-            { "nome": "dev", "host": "dev.db.acme.test", "porta": 5432, "clientId": "db-dev", "portaLocal": 15432 },
-            { "nome": "prod", "host": "db.acme.test", "porta": 5432, "clientId": "db-prod", "portaLocal": 15434, "somenteLeitura": true, "bancoPadrao": "app_ro" },
-          ]
-        }
-        """;
+    private static readonly Conexao Dev = new("ACME dev", "https://sso.acme.test/realms/interno/", "db-dev", "dev.db.acme.test", 5432, 15432, "app");
+    private static readonly Conexao Prod = new("ACME prod", "https://sso.acme.test/realms/interno", "db-prod", "db.acme.test", 5432, 15434, "app", SoLeitura: true, IdpHint: "microsoft");
 
     [Fact]
-    public void Configuracao_vem_do_json_com_os_padroes_aplicados()
+    public void Exporta_e_importa_as_conexoes_sem_perder_nada()
     {
-        var config = Configuracao.Ler(Exemplo);
+        var json = ArquivoDeConexoes.Escrever([Dev, Prod]);
+        var lidas = ArquivoDeConexoes.Ler(json);
 
-        Assert.Equal("ACME bancos", config.Nome);
-        Assert.Equal("https://sso.acme.test/realms/interno", config.Emissor);
-        Assert.Equal(15431, config.PortaRetorno);
-        var dev = config.AmbientesEfetivos[0];
-        Assert.Equal("app", dev.BancoPadrao);
-        Assert.False(dev.SoLeitura);
-        Assert.Equal("jdbc:postgresql://localhost:15432/app?sslmode=disable", dev.UrlJdbc);
-        Assert.True(config.AmbientesEfetivos[1].SoLeitura);
-        Assert.Equal("app_ro", config.AmbientesEfetivos[1].BancoPadrao);
+        Assert.Equal([Dev, Prod], lidas);
+        Assert.Contains("\"conexoes\"", json);
+        Assert.Contains("\"somenteLeitura\": true", json);
+        Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("https://sso.acme.test/realms/interno", lidas[0].EmissorNormalizado);
+        Assert.Equal("jdbc:postgresql://localhost:15432/app?sslmode=disable", lidas[0].UrlJdbc);
     }
 
     [Fact]
-    public void Sem_configuracao_nao_ha_ambientes()
+    public void Importa_o_formato_de_configuracao_antigo_uma_conexao_por_ambiente()
     {
-        var config = new Configuracao();
+        var lidas = ArquivoDeConexoes.Ler("""
+            {
+              // comentário e vírgula sobrando são aceitos
+              "emissor": "https://sso.acme.test/realms/interno",
+              "bancoPadrao": "app",
+              "ambientes": [
+                { "nome": "dev", "host": "dev.db.acme.test", "porta": 5432, "clientId": "db-dev", "portaLocal": 15432 },
+                { "nome": "prod", "host": "db.acme.test", "porta": 6432, "clientId": "db-prod", "portaLocal": 15434, "somenteLeitura": true },
+              ]
+            }
+            """);
 
-        Assert.Equal("DB Connector", config.Nome);
-        Assert.Empty(config.AmbientesEfetivos);
-        Assert.Empty(Opcoes.Ler([], config: config)!.Ambientes);
+        Assert.Equal(["dev", "prod"], lidas.Select(c => c.Nome));
+        Assert.All(lidas, c => Assert.Equal("https://sso.acme.test/realms/interno", c.Emissor));
+        Assert.Equal((6432, true, "app"), (lidas[1].PortaGateway, lidas[1].SoLeitura, lidas[1].BancoPadrao));
     }
 
     [Theory]
-    [InlineData("""{ "ambientes": [ { "nome": "dev", "host": "h", "porta": 5432, "clientId": "c", "portaLocal": 15432 } ] }""")]
-    [InlineData("""{ "emissor": "https://sso/r", "ambientes": [ { "nome": "a", "host": "h", "porta": 5432, "clientId": "c", "portaLocal": 15432 }, { "nome": "b", "host": "h", "porta": 5432, "clientId": "c", "portaLocal": 15432 } ] }""")]
-    [InlineData("""{ "emissor": "https://sso/r", "ambientes": [ { "nome": "a", "host": "h", "porta": 5432, "clientId": "c", "portaLocal": 15431 } ] }""")]
-    [InlineData("""{ "nome": """)]
-    public void Configuracao_invalida_e_recusada(string json) =>
-        Assert.Throws<ArgumentException>(() => Configuracao.Ler(json));
+    [InlineData("""{ "conexoes": [ { "nome": "a", "emissor": "não é url", "clientId": "c", "host": "h" } ] }""")]
+    [InlineData("""{ "conexoes": [ { "nome": "a", "emissor": "https://sso/r", "clientId": "c", "host": "h", "portaLocal": 15432 }, { "nome": "A", "emissor": "https://sso/r", "clientId": "c", "host": "h", "portaLocal": 15433 } ] }""")]
+    [InlineData("""{ "conexoes": [ { "nome": "a", "emissor": "https://sso/r", "clientId": "c", "host": "h", "portaLocal": 15432 }, { "nome": "b", "emissor": "https://sso/r", "clientId": "c", "host": "h", "portaLocal": 15432 } ] }""")]
+    [InlineData("""{ "conexoes": [ { "nome": "a", "emissor": "https://sso/r", "clientId": "c", "host": "h", "portaLocal": 15431 } ] }""")]
+    [InlineData("""{ "outra": 1 }""")]
+    [InlineData("""{ "conexoes": """)]
+    public void Arquivo_invalido_e_recusado(string json) =>
+        Assert.Throws<ArgumentException>(() => ArquivoDeConexoes.Ler(json));
 
     [Fact]
-    public void Argumentos_escolhem_os_ambientes_da_configuracao()
+    public void Salva_e_carrega_do_disco()
     {
-        var config = Configuracao.Ler(Exemplo);
-
-        Assert.Equal(["dev"], Opcoes.Ler([], config: config)!.Ambientes.Select(a => a.Nome));
-        Assert.Empty(Opcoes.Ler([], nenhumSemArgumento: true, config: config)!.Ambientes);
-        Assert.Equal(["prod", "dev"], Opcoes.Ler(["prod", "DEV", "dev"], config: config)!.Ambientes.Select(a => a.Nome));
-        Assert.Null(Opcoes.Ler(["--ajuda"], config: config));
-        Assert.Throws<ArgumentException>(() => Opcoes.Ler(["homolog"], config: config));
-        Assert.Equal("microsoft", Opcoes.Ler(["--idp", "microsoft"], config: config)!.IdpHint);
+        var caminho = Path.Combine(Path.GetTempPath(), $"db-connector-{Guid.NewGuid():N}", "conexoes.json");
+        try
+        {
+            Assert.Empty(ArquivoDeConexoes.Carregar(caminho));
+            ArquivoDeConexoes.Salvar([Dev, Prod], caminho);
+            Assert.Equal([Dev, Prod], ArquivoDeConexoes.Carregar(caminho));
+            Assert.Throws<ArgumentException>(() => ArquivoDeConexoes.Salvar([Dev, Dev with { PortaLocal = 15500 }], caminho));
+            Assert.Equal([Dev, Prod], ArquivoDeConexoes.Carregar(caminho));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(caminho)!, recursive: true);
+        }
     }
 
     [Fact]
-    public void Gateway_avulso_substitui_os_ambientes()
+    public void Importar_substitui_pelo_nome_e_acha_porta_livre()
     {
-        var opcoes = Opcoes.Ler(["--gateway", "localhost:6432", "--client", "teste", "--inseguro"], config: Configuracao.Ler(Exemplo))!;
+        var importadas = new[] { Dev with { Host = "novo.db.acme.test" }, new Conexao("ACME qa", Dev.Emissor, "db-qa", "qa.db.acme.test", PortaLocal: 15434) };
 
-        var local = Assert.Single(opcoes.Ambientes);
+        var juntas = ArquivoDeConexoes.Juntar([Dev, Prod], importadas);
+
+        Assert.Equal(["ACME prod", "ACME dev", "ACME qa"], juntas.Select(c => c.Nome));
+        Assert.Equal("novo.db.acme.test", juntas[1].Host);
+        Assert.Equal(15435, juntas[2].PortaLocal);
+        Assert.Empty(ArquivoDeConexoes.Validar(juntas));
+        Assert.Equal(15433, ArquivoDeConexoes.PortaLivre([Dev, Prod]));
+    }
+
+    [Fact]
+    public void Argumentos_escolhem_as_conexoes_pelo_nome()
+    {
+        IReadOnlyList<Conexao> salvas = [Dev, Prod];
+
+        Assert.Equal(["ACME dev"], Opcoes.Ler([], salvas: salvas)!.Escolhidas.Select(c => c.Nome));
+        Assert.Empty(Opcoes.Ler([], nenhumaSemArgumento: true, salvas: salvas)!.Escolhidas);
+        Assert.Equal(["ACME prod", "ACME dev"], Opcoes.Ler(["acme prod", "ACME dev"], salvas: salvas)!.Escolhidas.Select(c => c.Nome));
+        Assert.Null(Opcoes.Ler(["--ajuda"], salvas: salvas));
+        Assert.Throws<ArgumentException>(() => Opcoes.Ler(["homolog"], salvas: salvas));
+        var opcoes = Opcoes.Ler(["--idp", "google"], salvas: salvas)!;
+        Assert.Equal("google", opcoes.IdpHintDe(Prod));
+        Assert.Equal("microsoft", new Opcoes(salvas, []).IdpHintDe(Prod));
+        Assert.Empty(Opcoes.Ler([], salvas: [])!.Escolhidas);
+    }
+
+    [Fact]
+    public void Gateway_avulso_substitui_as_conexoes()
+    {
+        var opcoes = Opcoes.Ler(["--gateway", "localhost:6432", "--client", "teste", "--emissor", "http://localhost:8080/realms/r", "--inseguro"], salvas: [Dev])!;
+
+        var local = Assert.Single(opcoes.Escolhidas);
         Assert.Equal(("localhost", 6432, "teste"), (local.Host, local.PortaGateway, local.ClientId));
         Assert.True(opcoes.AceitarCertificadoInvalido);
+        Assert.Throws<ArgumentException>(() => Opcoes.Ler(["--gateway", "localhost:6432", "--client", "teste"], salvas: [Dev]));
     }
 
     [Fact]
@@ -88,17 +124,17 @@ public class ConectorTests
     [Fact]
     public async Task Senha_local_errada_e_recusada_antes_do_login_e_a_porta_fica_ocupada()
     {
-        var ambiente = new Ambiente("teste", "gateway.invalido", 5432, "db-teste", 25432);
-        var opcoes = new Opcoes(new Configuracao(Nome: "Teste", Emissor: "https://sso.invalido/realms/r", PortaRetorno: 25431, Ambientes: [ambiente]), [ambiente]);
+        var conexao = new Conexao("teste", "https://sso.invalido/realms/r", "db-teste", "gateway.invalido", 5432, 25432);
+        var opcoes = new Opcoes([conexao], [conexao]);
         using var http = new HttpClient();
         await using var conector = new Conector(opcoes, http, new SenhaLocal("AAAA-BBBB-CCCC"));
         var registros = new List<string>();
         conector.Registro += (_, mensagem) => { lock (registros) registros.Add(mensagem); };
-        conector.Ligar(ambiente, entrarAgora: false);
+        conector.Ligar(conexao, entrarAgora: false);
 
         // Outra instância na mesma porta não abre.
         await using (var outro = new Conector(opcoes, http, new SenhaLocal()))
-            Assert.Throws<InvalidOperationException>(() => outro.Ligar(ambiente, entrarAgora: false));
+            Assert.Throws<InvalidOperationException>(() => outro.Ligar(conexao, entrarAgora: false));
 
         using var cliente = new TcpClient();
         await cliente.ConnectAsync("127.0.0.1", 25432);
@@ -111,7 +147,7 @@ public class ConectorTests
 
         Assert.Equal((byte)'E', erro!.Value.Type);
         Assert.Equal("28P01", PgWire.ParseErrorFields(erro.Value.Body)['C']);
-        Assert.Contains("Teste", PgWire.ParseErrorFields(erro.Value.Body)['M']);
+        Assert.Contains("DB Connector", PgWire.ParseErrorFields(erro.Value.Body)['M']);
         lock (registros) Assert.Contains(registros, r => r.Contains("senha local errada"));
     }
 }

@@ -2,7 +2,7 @@
 
   <!-- DB Connector: o aplicativo (janela) de quem acessa bancos PostgreSQL atrás de um gateway com login OIDC (SSO),
        pelo DBeaver ou outro aplicativo SQL. Avalonia: Windows, Linux e macOS. Nome, ambientes e emissor vêm da
-       configuração (config.json embutido pelo CI, ao lado do executável ou na opção config).
+       configuração (config.json que o instalador grava ao lado do executável, ou na opção config).
        Publicação (CI): um executável só, com o runtime dentro:
        dotnet publish -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -->
   <PropertyGroup>

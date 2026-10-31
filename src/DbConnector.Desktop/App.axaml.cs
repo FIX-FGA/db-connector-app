@@ -6,21 +6,21 @@ namespace DbConnector.Desktop;
 
 public partial class App : Application
 {
-    /// <summary>Opções da linha de comando e a configuração (Program); sem configuração, nenhum ambiente.</summary>
-    public static Opcoes Opcoes { get; set; } = new(new Configuracao(), []);
+    /// <summary>Opções da linha de comando e as conexões (Program).</summary>
+    public static Opcoes Opcoes { get; set; } = new([], []);
 
-    /// <summary>Ambientes pedidos nos argumentos: ligados assim que a janela abre.</summary>
-    public static IReadOnlyList<Ambiente> LigarAoAbrir { get; set; } = [];
+    /// <summary>Conexões pedidas nos argumentos: ligadas assim que a janela abre.</summary>
+    public static IReadOnlyList<Conexao> LigarAoAbrir { get; set; } = [];
 
-    /// <summary>Configuração ou argumentos inválidos: a janela abre mostrando o erro.</summary>
-    public static string? ErroDeConfiguracao { get; set; }
+    /// <summary>Argumentos ou arquivo de conexões inválidos: a janela abre mostrando o erro.</summary>
+    public static string? Erro { get; set; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            desktop.MainWindow = new JanelaPrincipal(Opcoes, LigarAoAbrir, ErroDeConfiguracao);
+            desktop.MainWindow = new JanelaPrincipal(Opcoes, LigarAoAbrir, Erro);
         base.OnFrameworkInitializationCompleted();
     }
 }

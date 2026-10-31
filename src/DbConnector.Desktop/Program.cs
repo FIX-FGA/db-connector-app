@@ -5,23 +5,23 @@ namespace DbConnector.Desktop;
 internal static class Program
 {
     /// <summary>
-    /// Aceita as mesmas opções do db-connector-cli (--config, --idp, --gateway…). Ambientes nos argumentos (ex.:
-    /// "db-connector dev") são ligados ao abrir; a janela mostra todos os da configuração.
+    /// Abre com as conexões cadastradas (conexoes.json na pasta de dados do usuário). Aceita as mesmas opções do
+    /// db-connector-cli (--arquivo, --idp, --gateway…); conexões citadas pelo nome são ligadas ao abrir.
     /// </summary>
     [STAThread]
     public static int Main(string[] args)
     {
         try
         {
-            if (Opcoes.Ler(args, nenhumSemArgumento: true) is { } opcoes)
+            if (Opcoes.Ler(args, nenhumaSemArgumento: true) is { } opcoes)
             {
-                App.LigarAoAbrir = opcoes.Ambientes;
+                App.LigarAoAbrir = opcoes.Escolhidas;
                 App.Opcoes = opcoes;
             }
         }
-        catch (Exception e) when (e is ArgumentException or FormatException)
+        catch (Exception e) when (e is ArgumentException or FormatException or IOException)
         {
-            App.ErroDeConfiguracao = e.Message;
+            App.Erro = $"Não consegui ler as conexões: {e.Message}";
         }
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

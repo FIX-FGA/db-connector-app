@@ -49,110 +49,229 @@ public sealed class Comando(Func<Task> acao) : ICommand
     }
 }
 
-/// <summary>A janela: senha local, os ambientes e a atividade.</summary>
+/// <summary>O que a janela faz pelo modelo: diálogos, arquivos e área de transferência.</summary>
+public interface IJanela
+{
+    /// <summary>Abre o cadastro (nova, se <paramref name="atual"/> é null); null se cancelou.</summary>
+    Task<Conexao?> EditarAsync(Conexao? atual, IReadOnlyList<Conexao> outras);
+    Task<bool> ConfirmarAsync(string titulo, string texto, string acao);
+    Task<string?> EscolherArquivoParaAbrirAsync();
+    Task<string?> EscolherArquivoParaSalvarAsync(string sugestao);
+    Task CopiarAsync(string texto);
+}
+
+/// <summary>A janela: senha local, as conexões cadastradas e a atividade.</summary>
 public sealed class JanelaVm : Observavel
 {
     private const int LimiteAtividade = 500;
+    private readonly string? _arquivo;
     private string? _aviso;
+    private string? _erro;
 
-    public JanelaVm(Conector conector, Opcoes opcoes, string? erroDeConfiguracao, Func<string, Task> copiar)
+    /// <param name="arquivo">Onde salvar as conexões; null quando vieram dos argumentos (--arquivo, --gateway): não salva.</param>
+    public JanelaVm(Conector conector, IEnumerable<Conexao> conexoes, string? arquivo, string? erro, IJanela janela)
     {
-        var config = opcoes.Config;
-        Nome = config.Nome;
-        Descricao = config.DescricaoOuPadrao;
+        Conector = conector;
+        Janela = janela;
+        _arquivo = arquivo;
+        _erro = erro;
         SenhaLocal = conector.SenhaLocal.Valor;
-        Ambientes = [.. config.AmbientesEfetivos.Select(a => new AmbienteVm(a, conector, this, copiar))];
-        Portas = string.Join(", ", config.AmbientesEfetivos.Select(a => $"{a.Nome} {a.PortaLocal}"));
-        Banco = config.AmbientesEfetivos.Select(a => a.BancoPadrao).Distinct().ToList() is [{ } unico]
-            ? $"{unico}, com “Show all databases” marcado para ver os outros"
-            : "o database que você quer abrir (“Show all databases” mostra os outros)";
-        SemAmbientes = erroDeConfiguracao is not null
-            ? $"Configuração inválida: {erroDeConfiguracao}"
-            : Ambientes.Count == 0
-                ? "Nenhum ambiente configurado. Este build não traz configuração: abra com --config <arquivo> (veja o README do db-connector-app)."
-                : null;
+        foreach (var c in conexoes) Conexoes.Add(new ConexaoVm(c, this));
+        Conexoes.CollectionChanged += (_, _) => Avisar(nameof(Vazio), nameof(Portas), nameof(Mensagem));
         CopiarSenha = new Comando(async () =>
         {
-            await copiar(SenhaLocal);
+            await janela.CopiarAsync(SenhaLocal);
             await MostrarAvisoAsync("Senha local copiada.");
         });
+        NovaConexao = new Comando(async () =>
+        {
+            if (await janela.EditarAsync(null, ListaDeConexoes()) is { } nova)
+                await GuardarAsync(() => Conexoes.Add(new ConexaoVm(nova, this)), $"Conexão {nova.Nome} criada.");
+        });
+        Importar = new Comando(ImportarAsync);
+        Exportar = new Comando(ExportarAsync);
     }
 
-    public string Nome { get; }
-    public string Descricao { get; }
-    /// <summary>Portas locais, para o guia ("dev 15432, qa 15433").</summary>
-    public string Portas { get; }
-    public string Banco { get; }
-    /// <summary>Aviso no lugar dos ambientes quando não há nenhum (ou a configuração é inválida).</summary>
-    public string? SemAmbientes { get; }
+    public string Nome => Opcoes.NomeDoAplicativo;
+    public string Descricao => "Acesso aos bancos pelo seu aplicativo SQL (DBeaver, DataGrip, psql…), com o seu login (SSO) no navegador.";
     public string SenhaLocal { get; }
-    public IReadOnlyList<AmbienteVm> Ambientes { get; }
+    public ObservableCollection<ConexaoVm> Conexoes { get; } = [];
     public ObservableCollection<string> Atividade { get; } = [];
     public ICommand CopiarSenha { get; }
+    public ICommand NovaConexao { get; }
+    public ICommand Importar { get; }
+    public ICommand Exportar { get; }
+    public bool PodeEditar => _arquivo is not null;
+    public bool Vazio => Conexoes.Count == 0;
+    internal Conector Conector { get; }
+    internal IJanela Janela { get; }
+
+    /// <summary>Portas locais, para o guia ("FIX dev 15432, FIX prod 15434").</summary>
+    public string Portas => Conexoes.Count == 0
+        ? "a porta local da conexão"
+        : string.Join(", ", Conexoes.Select(c => $"{c.Nome} {c.Conexao.PortaLocal}"));
+
+    /// <summary>Aviso no lugar das conexões: erro ao carregar, ou nenhuma cadastrada.</summary>
+    public string? Mensagem => _erro ?? (Vazio
+        ? "Nenhuma conexão cadastrada. Clique em Nova conexão e informe o emissor (realm do Keycloak), o client e o gateway, ou em Importar para usar o arquivo que alguém exportou."
+        : null);
 
     /// <summary>Mensagem curta no rodapé (ex.: "copiado").</summary>
     public string? Aviso { get => _aviso; private set => Definir(ref _aviso, value); }
 
-    public void Registrar(string ambiente, string mensagem)
+    public IReadOnlyList<Conexao> ListaDeConexoes(ConexaoVm? exceto = null) =>
+        [.. Conexoes.Where(c => c != exceto).Select(c => c.Conexao)];
+
+    public void Registrar(string conexao, string mensagem)
     {
-        Atividade.Insert(0, $"{DateTime.Now:HH:mm:ss}  {ambiente,-5} {mensagem}");
+        Atividade.Insert(0, $"{DateTime.Now:HH:mm:ss}  {conexao,-10} {mensagem}");
         while (Atividade.Count > LimiteAtividade) Atividade.RemoveAt(Atividade.Count - 1);
     }
 
     public async Task MostrarAvisoAsync(string texto)
     {
         Aviso = texto;
-        await Task.Delay(TimeSpan.FromSeconds(3));
+        await Task.Delay(TimeSpan.FromSeconds(4));
         if (Aviso == texto) Aviso = null;
+    }
+
+    /// <summary>Aplica a mudança e salva; se não der para salvar, desfaz (<paramref name="desfazer"/>) e avisa.</summary>
+    internal async Task<bool> GuardarAsync(Action mudanca, string aviso, Action? desfazer = null)
+    {
+        var antes = Conexoes.ToList();
+        mudanca();
+        try
+        {
+            if (_arquivo is not null) ArquivoDeConexoes.Salvar(ListaDeConexoes(), _arquivo);
+            _erro = null;
+            Avisar(nameof(Mensagem), nameof(Portas));
+            _ = MostrarAvisoAsync(aviso);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            desfazer?.Invoke();
+            Conexoes.Clear();
+            foreach (var c in antes) Conexoes.Add(c);
+            Registrar("conexões", $"não salvei: {e.Message}");
+            await MostrarAvisoAsync($"Não salvei: {e.Message}");
+            return false;
+        }
+    }
+
+    private async Task ImportarAsync()
+    {
+        if (await Janela.EscolherArquivoParaAbrirAsync() is not { } caminho) return;
+        IReadOnlyList<Conexao> importadas;
+        try
+        {
+            importadas = ArquivoDeConexoes.Ler(await File.ReadAllTextAsync(caminho), Path.GetFileName(caminho));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Registrar("importar", e.Message);
+            await MostrarAvisoAsync($"Não importei: {e.Message}");
+            return;
+        }
+        var ligadas = Conexoes.Where(c => c.Ligado && importadas.Any(i => string.Equals(c.Nome, i.Nome, StringComparison.OrdinalIgnoreCase)))
+            .Select(c => c.Nome).ToList();
+        if (ligadas.Count > 0)
+        {
+            await MostrarAvisoAsync($"Desligue antes de importar: {string.Join(", ", ligadas)}.");
+            return;
+        }
+        var juntas = ArquivoDeConexoes.Juntar(ListaDeConexoes(), importadas);
+        var mantidas = Conexoes.ToDictionary(c => c.Conexao);
+        await GuardarAsync(() =>
+        {
+            Conexoes.Clear();
+            foreach (var c in juntas) Conexoes.Add(mantidas.TryGetValue(c, out var vm) ? vm : new ConexaoVm(c, this));
+        }, $"{importadas.Count} conexão(ões) importada(s) de {Path.GetFileName(caminho)}.");
+    }
+
+    private async Task ExportarAsync()
+    {
+        if (Conexoes.Count == 0)
+        {
+            await MostrarAvisoAsync("Nada para exportar: cadastre ou importe uma conexão.");
+            return;
+        }
+        if (await Janela.EscolherArquivoParaSalvarAsync("conexoes.json") is not { } caminho) return;
+        try
+        {
+            await File.WriteAllTextAsync(caminho, ArquivoDeConexoes.Escrever(ListaDeConexoes()));
+            await MostrarAvisoAsync($"{Conexoes.Count} conexão(ões) exportada(s) para {Path.GetFileName(caminho)} (sem senha nem token).");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            await MostrarAvisoAsync($"Não exportei: {e.Message}");
+        }
     }
 }
 
-/// <summary>Um ambiente na janela: ligar/desligar, estado do login e conexões abertas.</summary>
-public sealed class AmbienteVm : Observavel
+/// <summary>Uma conexão na janela: ligar/desligar, estado do login, sessões abertas, editar e remover.</summary>
+public sealed class ConexaoVm : Observavel
 {
     private static readonly IBrush Cinza = new SolidColorBrush(Color.Parse("#8A909C"));
     private static readonly IBrush Amarelo = new SolidColorBrush(Color.Parse("#E0A100"));
     private static readonly IBrush Verde = new SolidColorBrush(Color.Parse("#2E9E5B"));
     private static readonly IBrush Vermelho = new SolidColorBrush(Color.Parse("#D64545"));
 
-    private readonly Ambiente _ambiente;
+    private Conexao _conexao;
     private Situacao _situacao = new(Estado.Desligado);
     private string? _erroAoLigar;
 
-    public AmbienteVm(Ambiente ambiente, Conector conector, JanelaVm janela, Func<string, Task> copiar)
+    public ConexaoVm(Conexao conexao, JanelaVm janela)
     {
-        _ambiente = ambiente;
+        _conexao = conexao;
+        var conector = janela.Conector;
         Alternar = new Comando(async () =>
         {
             if (Ligado)
             {
-                await conector.DesligarAsync(ambiente);
+                await conector.DesligarAsync(_conexao);
                 return;
             }
             try
             {
                 _erroAoLigar = null;
-                conector.Ligar(ambiente);
+                conector.Ligar(_conexao);
             }
             catch (InvalidOperationException e)
             {
                 _erroAoLigar = e.Message;
-                janela.Registrar(ambiente.Nome, e.Message);
+                janela.Registrar(_conexao.Nome, e.Message);
                 Avisar(nameof(Detalhe));
             }
         });
-        EntrarDeNovo = new Comando(() => conector.EntrarAsync(ambiente));
+        EntrarDeNovo = new Comando(() => conector.EntrarAsync(_conexao));
         CopiarUrl = new Comando(async () =>
         {
-            await copiar(ambiente.UrlJdbc);
-            await janela.MostrarAvisoAsync($"URL do {ambiente.Nome} copiada: no DBeaver, Nova conexão → PostgreSQL → URL.");
+            await janela.Janela.CopiarAsync(_conexao.UrlJdbc);
+            await janela.MostrarAvisoAsync($"URL de {_conexao.Nome} copiada: no DBeaver, Nova conexão → PostgreSQL → URL.");
+        });
+        Editar = new Comando(async () =>
+        {
+            if (Ligado || await janela.Janela.EditarAsync(_conexao, janela.ListaDeConexoes(this)) is not { } editada) return;
+            var antes = _conexao;
+            await janela.GuardarAsync(() => { _conexao = editada; AvisarTudo(); }, $"Conexão {editada.Nome} salva.",
+                desfazer: () => { _conexao = antes; AvisarTudo(); });
+        });
+        Remover = new Comando(async () =>
+        {
+            if (Ligado || !await janela.Janela.ConfirmarAsync("Remover conexão", $"Remover a conexão {_conexao.Nome} deste computador?", "Remover")) return;
+            await janela.GuardarAsync(() => janela.Conexoes.Remove(this), $"Conexão {_conexao.Nome} removida.");
         });
     }
 
-    public string Nome => _ambiente.Nome;
-    public string Permissao => _ambiente.Permissao;
-    public string Endereco => $"localhost:{_ambiente.PortaLocal}";
-    public string Host => _ambiente.Host;
+    public Conexao Conexao => _conexao;
+    public string Nome => _conexao.Nome;
+    public string Permissao => _conexao.Permissao;
+    public string Endereco => $"localhost:{_conexao.PortaLocal}";
+    public string Destino => $"{_conexao.Host}:{_conexao.PortaGateway} · client {_conexao.ClientId}";
+    public ICommand Editar { get; }
+    public ICommand Remover { get; }
+    public bool Desligado => !Ligado;
 
     public ICommand Alternar { get; }
     public ICommand EntrarDeNovo { get; }
@@ -206,8 +325,10 @@ public sealed class AmbienteVm : Observavel
     public void Atualizar(Situacao situacao)
     {
         _situacao = situacao;
-        Avisar(nameof(Ligado), nameof(Acao), nameof(PodeEntrarDeNovo), nameof(Cor), nameof(Rotulo), nameof(Detalhe));
+        Avisar(nameof(Ligado), nameof(Desligado), nameof(Acao), nameof(PodeEntrarDeNovo), nameof(Cor), nameof(Rotulo), nameof(Detalhe));
     }
+
+    private void AvisarTudo() => Avisar(nameof(Conexao), nameof(Nome), nameof(Permissao), nameof(Endereco), nameof(Destino), nameof(Detalhe));
 
     /// <summary>A cada minuto: a sessão pode ter acabado sem nenhum evento.</summary>
     public void Tique() => Avisar(nameof(Detalhe));

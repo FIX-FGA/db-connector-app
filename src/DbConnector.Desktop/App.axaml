@@ -65,6 +65,13 @@
       <Setter Property="CornerRadius" Value="10" />
     </Style>
     <!-- Ação principal (Conectar): azul. -->
+    <!-- Ação secundária do cartão (Editar, Remover): só texto. -->
+    <Style Selector="Button.discreto">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource Destaque}" />
+    </Style>
     <Style Selector="Button.principal">
       <Setter Property="Background" Value="#175CD3" />
       <Setter Property="Foreground" Value="White" />

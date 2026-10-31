@@ -6,10 +6,4 @@
     <RootNamespace>DbConnector</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Configuração de quem distribui (nome, emissor, ambientes): o CI gera este arquivo a partir da variável
-         DB_CONNECTOR_CONFIG e ele vai embutido no executável. Fora do git; sem ele, o aplicativo abre sem ambientes. -->
-    <EmbeddedResource Include="config.json" LogicalName="config.json" Condition="Exists('config.json')" />
-  </ItemGroup>
-
 </Project>

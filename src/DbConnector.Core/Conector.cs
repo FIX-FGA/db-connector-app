@@ -19,18 +19,18 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
     private readonly HttpClient _http = http;
     private readonly ConcurrentDictionary<string, Ligacao> _ligados = new(StringComparer.OrdinalIgnoreCase);
 
-    public event Action<Ambiente, Situacao>? Mudou;
+    public event Action<Conexao, Situacao>? Mudou;
     public event Registrar? Registro;
 
     public SenhaLocal SenhaLocal => senhaLocal;
 
-    public Situacao SituacaoDe(Ambiente ambiente) => _ligados.TryGetValue(ambiente.Nome, out var l) ? l.Situacao : new(Estado.Desligado);
+    public Situacao SituacaoDe(Conexao ambiente) => _ligados.TryGetValue(ambiente.Nome, out var l) ? l.Situacao : new(Estado.Desligado);
 
     /// <summary>
     /// Abre a porta local e, com <paramref name="entrarAgora"/>, já começa o login (senão, só na primeira conexão do
     /// DBeaver). Falha (InvalidOperationException) se a porta já está em uso.
     /// </summary>
-    public void Ligar(Ambiente ambiente, bool entrarAgora = true)
+    public void Ligar(Conexao ambiente, bool entrarAgora = true)
     {
         if (_ligados.ContainsKey(ambiente.Nome)) return;
         var escuta = new TcpListener(IPAddress.Loopback, ambiente.PortaLocal);
@@ -40,7 +40,7 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
         }
         catch (SocketException e)
         {
-            throw new InvalidOperationException($"A porta {ambiente.PortaLocal} já está em uso: feche o outro {_opcoes.NomeDoAplicativo} (ou o programa que a usa) e conecte de novo.", e);
+            throw new InvalidOperationException($"A porta {ambiente.PortaLocal} já está em uso: feche o outro {Opcoes.NomeDoAplicativo} (ou o programa que a usa) e conecte de novo.", e);
         }
         var ligacao = new Ligacao(this, ambiente, escuta);
         _ligados[ambiente.Nome] = ligacao;
@@ -49,10 +49,10 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
     }
 
     /// <summary>Faz o login agora (reaproveita o token se ainda vale).</summary>
-    public Task EntrarAsync(Ambiente ambiente) => _ligados.TryGetValue(ambiente.Nome, out var l) ? l.EntrarAsync() : Task.CompletedTask;
+    public Task EntrarAsync(Conexao ambiente) => _ligados.TryGetValue(ambiente.Nome, out var l) ? l.EntrarAsync() : Task.CompletedTask;
 
     /// <summary>Fecha a porta local e as conexões abertas e esquece o token.</summary>
-    public async Task DesligarAsync(Ambiente ambiente)
+    public async Task DesligarAsync(Conexao ambiente)
     {
         if (!_ligados.TryRemove(ambiente.Nome, out var ligacao)) return;
         await ligacao.DisposeAsync();
@@ -66,28 +66,28 @@ public sealed class Conector(Opcoes opcoes, HttpClient http, SenhaLocal senhaLoc
         _ligados.Clear();
     }
 
-    private void Registrar(Ambiente ambiente, string mensagem) => Registro?.Invoke(ambiente, mensagem);
+    private void Registrar(Conexao ambiente, string mensagem) => Registro?.Invoke(ambiente, mensagem);
 
     private sealed class Ligacao : IAsyncDisposable
     {
         private readonly Conector _conector;
-        private readonly Ambiente _ambiente;
+        private readonly Conexao _ambiente;
         private readonly TcpListener _escuta;
         private readonly CancellationTokenSource _parar = new();
-        private readonly TokenDoAmbiente _token;
+        private readonly TokenDaConexao _token;
         private readonly Sessao _sessao;
         private readonly object _trava = new();
         private Task _atendimento = Task.CompletedTask;
         private int _conexoes;
 
-        public Ligacao(Conector conector, Ambiente ambiente, TcpListener escuta)
+        public Ligacao(Conector conector, Conexao ambiente, TcpListener escuta)
         {
             _conector = conector;
             _ambiente = ambiente;
             _escuta = escuta;
             Situacao = new Situacao(Estado.AguardandoLogin);
             var login = new LoginNavegador(conector._opcoes, conector._http, conector.Registrar);
-            _token = new TokenDoAmbiente(ambiente, login);
+            _token = new TokenDaConexao(ambiente, login);
             _token.LoginIniciado += () => Atualizar(s => s with { Estado = Estado.AguardandoLogin, Erro = null });
             _token.Obtido += tokens =>
             {
