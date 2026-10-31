@@ -1,5 +1,7 @@
-# db-connector-app (FIX bancos): build e testes em todo push e PR; executáveis de cada sistema como artefato; na master, o executável do
-# Windows é assinado pela SignPath Foundation (quando os secrets existem) e tudo vai para uma release.
+# db-connector-app (DB Connector): build e testes em todo push e PR; executáveis de cada sistema e o instalador do
+# Windows (MSI); na master, assinatura pela SignPath Foundation (quando os secrets existem: primeiro o .exe, que entra no
+# MSI, depois o MSI) e release. Nada de uma organização vai no build: as conexões são cadastradas (ou importadas) no
+# próprio aplicativo.
 name: ci
 
 on:
@@ -19,6 +21,7 @@ permissions:
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  VERSAO: 1.0.${{ github.run_number }}
 
 jobs:
   build:
@@ -28,75 +31,68 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore Fix.Bancos.slnx
-      - run: dotnet build Fix.Bancos.slnx --no-restore -c Release
-      - run: dotnet test Fix.Bancos.slnx --no-build -c Release
+      - run: dotnet restore DbConnector.slnx
+      - run: dotnet build DbConnector.slnx --no-restore -c Release
+      - run: dotnet test DbConnector.slnx --no-build -c Release
 
-  # Um executável por sistema, com o runtime dentro. O do Windows sai num runner Windows: só lá o SDK grava o ícone e
-  # a versão no .exe.
+  # Um executável por sistema, com o runtime dentro, sem configuração. O do Windows sai num runner Windows: só lá o SDK
+  # grava o ícone e a versão no .exe.
   publicar:
     needs: [build]
     strategy:
       matrix:
         include:
-          - { os: windows-latest, rid: win-x64, nome: fix-bancos-windows-x64.exe, origem: fix-bancos.exe }
-          - { os: ubuntu-latest, rid: linux-x64, nome: fix-bancos-linux-x64, origem: fix-bancos }
-          - { os: ubuntu-latest, rid: osx-arm64, nome: fix-bancos-macos-arm64, origem: fix-bancos }
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: ubuntu-latest, rid: osx-arm64 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Publica o aplicativo
+      - name: Publica
         shell: bash
         run: |
-          dotnet publish src/Fix.Bancos.Desktop/Fix.Bancos.Desktop.csproj -c Release -r ${{ matrix.rid }} -o out \
-            -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -p:DebugType=none \
-            -p:Version=1.0.${{ github.run_number }}
+          opcoes="-c Release -r ${{ matrix.rid }} -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -p:DebugType=none -p:Version=$VERSAO"
+          dotnet publish src/DbConnector.Desktop/DbConnector.Desktop.csproj $opcoes -o out
           mkdir dist
-          cp "out/${{ matrix.origem }}" "dist/${{ matrix.nome }}"
-      - name: Publica a linha de comando (Linux)
-        if: matrix.rid == 'linux-x64'
-        shell: bash
-        run: |
-          dotnet publish src/Fix.Bancos.Cli/Fix.Bancos.Cli.csproj -c Release -r linux-x64 -o out-cli \
-            -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -p:DebugType=none \
-            -p:Version=1.0.${{ github.run_number }}
-          cp out-cli/fix-bancos-cli dist/fix-bancos-cli-linux-x64
+          if [ "${{ matrix.rid }}" = win-x64 ]; then
+            cp out/db-connector.exe dist/db-connector-windows-x64.exe
+          else
+            dotnet publish src/DbConnector.Cli/DbConnector.Cli.csproj $opcoes -o out-cli
+            cp out/db-connector out-cli/db-connector-cli dist/
+          fi
       - uses: actions/upload-artifact@v4
-        id: artefato
         with:
           name: ${{ matrix.rid }}
           path: dist/
           if-no-files-found: error
 
-  # Assinatura Authenticode do .exe pela SignPath Foundation (certificado para projetos open source). O pedido leva o
-  # artefato win-x64 deste mesmo build; a SignPath confere de onde ele veio (repositório, branch, commit, workflow) e
-  # devolve o executável assinado. Sem o secret SIGNPATH_API_TOKEN, a release sai sem assinatura.
-  assinar:
+  # Assinatura Authenticode pela SignPath Foundation (certificado para projetos open source): o pedido leva um artefato
+  # deste build; a SignPath confere de onde ele veio (repositório, branch, commit, workflow) e devolve o arquivo
+  # assinado. Sem o secret SIGNPATH_API_TOKEN, segue sem assinatura (aviso no log).
+  assinar-exe:
     needs: [publicar]
     if: github.ref_name == 'master' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
+    outputs:
+      assinado: ${{ steps.segredo.outputs.tem }}
     steps:
       - id: segredo
         env:
           TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
         run: echo "tem=$([ -n "$TOKEN" ] && echo sim || echo nao)" >> "$GITHUB_OUTPUT"
-      - name: Sem SignPath
-        if: steps.segredo.outputs.tem != 'sim'
-        run: echo "::warning::sem SIGNPATH_API_TOKEN, o fix-bancos-windows-x64.exe vai sem assinatura"
-      - name: Id do artefato win-x64
+      - if: steps.segredo.outputs.tem != 'sim'
+        run: echo "::warning::sem SIGNPATH_API_TOKEN, o executável e o instalador vão sem assinatura"
+      - id: artefato
         if: steps.segredo.outputs.tem == 'sim'
-        id: artefato
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="win-x64") | .id')
-          echo "id=$id" >> "$GITHUB_OUTPUT"
+        run: echo "id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="win-x64") | .id')" >> "$GITHUB_OUTPUT"
       - uses: signpath/github-action-submit-signing-request@v1
         if: steps.segredo.outputs.tem == 'sim'
         with:
@@ -115,27 +111,88 @@ jobs:
           path: assinado/
           if-no-files-found: error
 
+  # Instalador MSI (WiX 5) com o .exe (assinado, quando houver).
+  instalador:
+    needs: [publicar, assinar-exe]
+    if: always() && needs.publicar.result == 'success' && needs.assinar-exe.result != 'failure'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.assinar-exe.outputs.assinado == 'sim' && 'win-x64-assinado' || 'win-x64' }}
+          path: exe
+      - name: Monta o MSI
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          ./instalador/montar.ps1 -Exe exe/db-connector-windows-x64.exe -Versao $env:VERSAO -Saida msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador
+          path: msi/db-connector-windows-x64.msi
+          if-no-files-found: error
+
+  assinar-msi:
+    needs: [instalador, assinar-exe]
+    if: needs.assinar-exe.outputs.assinado == 'sim'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - id: artefato
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name=="instalador") | .id')" >> "$GITHUB_OUTPUT"
+      - uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: db-connector-app
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: instalador
+          github-artifact-id: ${{ steps.artefato.outputs.id }}
+          wait-for-completion: true
+          output-artifact-directory: assinado
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador-assinado
+          path: assinado/
+          if-no-files-found: error
+
   release:
-    needs: [publicar, assinar]
-    if: github.ref_name == 'master' && github.event_name == 'push'
+    needs: [publicar, assinar-exe, instalador, assinar-msi]
+    if: always() && github.ref_name == 'master' && github.event_name == 'push' && needs.instalador.result == 'success' && needs.assinar-msi.result != 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artefatos
-      - name: Junta os executáveis (o do Windows assinado, quando houver)
+      - name: Junta o instalador, o executável e os pacotes de Linux e macOS
         run: |
           mkdir dist
-          cp artefatos/linux-x64/* artefatos/osx-arm64/* dist/
+          if [ -d artefatos/instalador-assinado ]; then cp artefatos/instalador-assinado/* dist/; else cp artefatos/instalador/* dist/; fi
           if [ -d artefatos/win-x64-assinado ]; then cp artefatos/win-x64-assinado/* dist/; else cp artefatos/win-x64/* dist/; fi
+          for rid in linux-x64 osx-arm64; do
+            nome=$([ $rid = linux-x64 ] && echo db-connector-linux-x64 || echo db-connector-macos-arm64)
+            mkdir -p "pacote/$nome" && cp artefatos/$rid/* "pacote/$nome/"
+            chmod +x "pacote/$nome/db-connector" "pacote/$nome/db-connector-cli"
+            tar -C pacote -czf "dist/$nome.tar.gz" "$nome"
+          done
           (cd dist && sha256sum * > SHA256SUMS)
           ls -la dist
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          versao="v1.0.${GITHUB_RUN_NUMBER}"
-          gh release create "$versao" dist/* --repo "$GITHUB_REPOSITORY" --title "FIX bancos $versao" --latest \
-            --notes "FIX bancos: acesso aos bancos do FIX pelo DBeaver com o login no navegador. Windows: fix-bancos-windows-x64.exe. Confira o SHA256SUMS. Code signing policy: https://github.com/${GITHUB_REPOSITORY}#code-signing-policy"
+          gh release create "v$VERSAO" dist/* --repo "$GITHUB_REPOSITORY" --title "DB Connector v$VERSAO" --latest \
+            --notes "DB Connector: proxy local de SSO (OIDC) para bancos PostgreSQL, para usar com DBeaver e outros aplicativos SQL. Windows: instale pelo db-connector-windows-x64.msi. Linux e macOS: extraia o .tar.gz. As conexões são cadastradas (ou importadas) no aplicativo. Confira o SHA256SUMS. Code signing policy: https://github.com/${GITHUB_REPOSITORY}#code-signing-policy"

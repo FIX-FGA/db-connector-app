@@ -1,16 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- FIX bancos: o aplicativo (janela) de quem acessa os bancos pelo DBeaver. Avalonia: Windows, Linux e macOS.
+  <!-- DB Connector: o aplicativo (janela) de quem acessa bancos PostgreSQL atrás de um gateway com login OIDC (SSO),
+       pelo DBeaver ou outro aplicativo SQL. Avalonia: Windows, Linux e macOS. Nome, ambientes e emissor vêm da
+       configuração (config.json que o instalador grava ao lado do executável, ou na opção config).
        Publicação (CI): um executável só, com o runtime dentro:
        dotnet publish -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true -p:EnableCompressionInSingleFile=true -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>Fix.Bancos.Desktop</RootNamespace>
-    <AssemblyName>fix-bancos</AssemblyName>
-    <Product>FIX bancos</Product>
+    <RootNamespace>DbConnector.Desktop</RootNamespace>
+    <AssemblyName>db-connector</AssemblyName>
+    <Product>DB Connector</Product>
     <Company>FIX-FGA</Company>
-    <Description>Acesso aos bancos do FIX pelo DBeaver com o login no navegador</Description>
-    <ApplicationIcon>Assets\fix-bancos.ico</ApplicationIcon>
+    <Description>Proxy local de SSO (OIDC) para bancos PostgreSQL: o aplicativo SQL conecta em localhost e o login é no navegador</Description>
+    <ApplicationIcon>Assets\db-connector.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <InvariantGlobalization>true</InvariantGlobalization>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -30,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Fix.Bancos\Fix.Bancos.csproj" />
+    <ProjectReference Include="..\DbConnector.Core\DbConnector.Core.csproj" />
   </ItemGroup>
 
 </Project>

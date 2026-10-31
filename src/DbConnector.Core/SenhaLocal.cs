@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Fix.Bancos;
+namespace DbConnector;
 
 /// <summary>
-/// Senha que o DBeaver informa para conectar em localhost, gerada a cada execução do fix-bancos e mostrada só na janela
-/// dele: sem ela, outro programa ou usuário desta máquina não usa o login de quem abriu o fix-bancos. Não substitui o
+/// Senha que o DBeaver informa para conectar em localhost, gerada a cada execução do aplicativo e mostrada só na janela
+/// dele: sem ela, outro programa ou usuário desta máquina não usa o login de quem abriu o aplicativo. Não substitui o
 /// login do Keycloak (a identidade da auditoria continua vindo do token); só protege a porta local.
 /// </summary>
 public sealed class SenhaLocal

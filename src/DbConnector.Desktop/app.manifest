@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="FIX.Bancos.Desktop"/>
+  <assemblyIdentity version="1.0.0.0" name="DbConnector.Desktop"/>
   <!-- Roda como o usuário (sem pedir administrador). -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
