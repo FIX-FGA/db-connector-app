@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DbConnector.Core/DbConnector.Core.csproj" />
+    <Project Path="src/DbConnector.Cli/DbConnector.Cli.csproj" />
+    <Project Path="src/DbConnector.Desktop/DbConnector.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DbConnector.Tests/DbConnector.Tests.csproj" />
+  </Folder>
+</Solution>

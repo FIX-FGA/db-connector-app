@@ -1,0 +1,32 @@
+{
+  // Exemplo de arquivo de conexões: é o que o DB Connector exporta e importa (botões Exportar e Importar). Não tem
+  // segredo nenhum: quem importa faz o próprio login no navegador.
+  //
+  // emissor: o emissor OIDC (no Keycloak, a URL do realm). O login usa authorization code + PKCE com retorno em
+  //   http://127.0.0.1:15431/callback: cadastre esse redirect no client (público).
+  // clientId: o client OIDC (o token precisa ter a audiência que o gateway confere).
+  // host/porta: o gateway PostgreSQL (TLS; recebe o access token como senha).
+  // portaLocal: onde o aplicativo SQL conecta (localhost), uma por conexão.
+  // bancoPadrao, somenteLeitura (só o rótulo) e idpHint (kc_idp_hint do Keycloak, ex.: "microsoft") são opcionais.
+  "conexoes": [
+    {
+      "nome": "ACME dev",
+      "emissor": "https://sso.acme.example/realms/interno",
+      "clientId": "db-dev",
+      "host": "dev.db.acme.example",
+      "porta": 5432,
+      "portaLocal": 15432,
+      "bancoPadrao": "app"
+    },
+    {
+      "nome": "ACME prod",
+      "emissor": "https://sso.acme.example/realms/interno",
+      "clientId": "db-prod",
+      "host": "db.acme.example",
+      "porta": 5432,
+      "portaLocal": 15434,
+      "bancoPadrao": "app",
+      "somenteLeitura": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Núcleo do DB Connector (login OIDC no navegador, senha local, porta local para o aplicativo SQL, protocolo do
+       PostgreSQL), usado pelo aplicativo (DbConnector.Desktop) e pela linha de comando (DbConnector.Cli). -->
+  <PropertyGroup>
+    <RootNamespace>DbConnector</RootNamespace>
+  </PropertyGroup>
+
+</Project>

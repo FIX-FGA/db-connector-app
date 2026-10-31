@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- db-connector-cli: o DB Connector sem janela (Linux sem área de trabalho, scripts). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DbConnector.Cli</RootNamespace>
+    <AssemblyName>db-connector-cli</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Product>DB Connector</Product>
+    <Description>DB Connector (linha de comando): proxy local de SSO (OIDC) para bancos PostgreSQL</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbConnector.Core\DbConnector.Core.csproj" />
+  </ItemGroup>
+
+</Project>

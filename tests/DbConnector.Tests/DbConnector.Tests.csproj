@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Fix.Bancos/Fix.Bancos.csproj" />
+    <ProjectReference Include="../../src/DbConnector.Core/DbConnector.Core.csproj" />
   </ItemGroup>
 
 </Project>

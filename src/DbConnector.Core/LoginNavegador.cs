@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Web;
 
-namespace Fix.Bancos;
+namespace DbConnector;
 
 /// <summary>Tokens de um login; <see cref="SessaoAte"/> é até quando o Keycloak renova sem abrir o navegador.</summary>
 public sealed record Tokens(string AccessToken, string? RefreshToken, DateTimeOffset ExpiraEm, DateTimeOffset? SessaoAte = null)
@@ -24,7 +24,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
     private static readonly SemaphoreSlim Um = new(1, 1); // a porta de retorno é uma só
     private static readonly TimeSpan Limite = TimeSpan.FromMinutes(5);
 
-    public async Task<Tokens> EntrarAsync(Ambiente ambiente, CancellationToken ct)
+    public async Task<Tokens> EntrarAsync(Conexao ambiente, CancellationToken ct)
     {
         await Um.WaitAsync(ct);
         try
@@ -34,10 +34,10 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
             var estado = Base64Url(RandomNumberGenerator.GetBytes(16));
             var retorno = $"http://127.0.0.1:{opcoes.PortaRetorno}/callback";
 
-            var url = $"{opcoes.Emissor}/protocol/openid-connect/auth?response_type=code&client_id={Uri.EscapeDataString(ambiente.ClientId)}" +
+            var url = $"{ambiente.EmissorNormalizado}/protocol/openid-connect/auth?response_type=code&client_id={Uri.EscapeDataString(ambiente.ClientId)}" +
                       $"&redirect_uri={Uri.EscapeDataString(retorno)}&scope=openid%20email%20profile&state={estado}" +
                       $"&code_challenge={desafio}&code_challenge_method=S256" +
-                      (opcoes.IdpHint is { } idp ? $"&kc_idp_hint={Uri.EscapeDataString(idp)}" : "");
+                      (opcoes.IdpHintDe(ambiente) is { Length: > 0 } idp ? $"&kc_idp_hint={Uri.EscapeDataString(idp)}" : "");
 
             using var escuta = new TcpListener(IPAddress.Loopback, opcoes.PortaRetorno);
             escuta.Start();
@@ -64,7 +64,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
     }
 
     /// <summary>Token novo pelo refresh token (sem navegador); null se a sessão do Keycloak acabou.</summary>
-    public async Task<Tokens?> RenovarAsync(Ambiente ambiente, string refreshToken, CancellationToken ct)
+    public async Task<Tokens?> RenovarAsync(Conexao ambiente, string refreshToken, CancellationToken ct)
     {
         try
         {
@@ -81,9 +81,9 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
         }
     }
 
-    private async Task<Tokens> TrocarAsync(Ambiente ambiente, Dictionary<string, string> formulario, CancellationToken ct)
+    private async Task<Tokens> TrocarAsync(Conexao ambiente, Dictionary<string, string> formulario, CancellationToken ct)
     {
-        using var resposta = await http.PostAsync($"{opcoes.Emissor}/protocol/openid-connect/token", new FormUrlEncodedContent(formulario), ct);
+        using var resposta = await http.PostAsync($"{ambiente.EmissorNormalizado}/protocol/openid-connect/token", new FormUrlEncodedContent(formulario), ct);
         var json = await resposta.Content.ReadAsStringAsync(ct);
         if (!resposta.IsSuccessStatusCode) throw new InvalidOperationException($"Keycloak recusou ({(int)resposta.StatusCode}): {json}");
         using var doc = JsonDocument.Parse(json);
@@ -96,7 +96,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
         return new Tokens(access, refresh, expira, sessao) { Email = EmailDo(access) };
     }
 
-    private static async Task<string> EsperarRetornoAsync(TcpListener escuta, string estado, CancellationToken ct)
+    private async Task<string> EsperarRetornoAsync(TcpListener escuta, string estado, CancellationToken ct)
     {
         while (true)
         {
@@ -113,7 +113,7 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
             var query = HttpUtility.ParseQueryString(new Uri("http://127.0.0.1" + caminho).Query);
             if (query["state"] != estado)
             {
-                await ResponderAsync(stream, 400, "Login de outra tentativa: volte ao FIX bancos e tente de novo.", ct);
+                await ResponderAsync(stream, 400, $"Login de outra tentativa: volte ao {Opcoes.NomeDoAplicativo} e tente de novo.", ct);
                 continue;
             }
             if (query["error"] is { } erro)
@@ -126,16 +126,16 @@ public sealed class LoginNavegador(Opcoes opcoes, HttpClient http, Registrar reg
         }
     }
 
-    private static async Task ResponderAsync(Stream stream, int status, string texto, CancellationToken ct)
+    private async Task ResponderAsync(Stream stream, int status, string texto, CancellationToken ct)
     {
         var corpo = Encoding.UTF8.GetBytes(
-            $"<!doctype html><meta charset=utf-8><title>FIX · bancos</title><body style=\"font-family:system-ui;margin:3rem\"><h2>FIX · bancos</h2><p>{WebUtility.HtmlEncode(texto)}</p>");
+            $"<!doctype html><meta charset=utf-8><title>{WebUtility.HtmlEncode(Opcoes.NomeDoAplicativo)}</title><body style=\"font-family:system-ui;margin:3rem\"><h2>{WebUtility.HtmlEncode(Opcoes.NomeDoAplicativo)}</h2><p>{WebUtility.HtmlEncode(texto)}</p>");
         var cabecalho = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {corpo.Length}\r\nConnection: close\r\n\r\n");
         await stream.WriteAsync(cabecalho, ct);
         await stream.WriteAsync(corpo, ct);
     }
 
-    private void AbrirNavegador(Ambiente ambiente, string url)
+    private void AbrirNavegador(Conexao ambiente, string url)
     {
         try
         {

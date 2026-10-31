@@ -1,11 +1,11 @@
 using System.Net.Security;
 using System.Net.Sockets;
-using Fix.Bancos.Protocol;
+using DbConnector.Protocol;
 
-namespace Fix.Bancos;
+namespace DbConnector;
 
 /// <summary>Token de um ambiente: reaproveita, renova pelo refresh token ou, se a sessão acabou, abre o navegador.</summary>
-public sealed class TokenDoAmbiente(Ambiente ambiente, LoginNavegador login)
+public sealed class TokenDaConexao(Conexao ambiente, LoginNavegador login)
 {
     private readonly SemaphoreSlim _trava = new(1, 1);
     private Tokens? _tokens;
@@ -43,10 +43,10 @@ public sealed class TokenDoAmbiente(Ambiente ambiente, LoginNavegador login)
 
 /// <summary>
 /// Uma conexão do DBeaver em localhost: responde "sem SSL" (o trecho local não sai da máquina), pede a senha local (a da
-/// janela do FIX bancos), abre TLS até o gateway, repassa o StartupMessage e responde o pedido de senha do gateway com o
+/// janela do aplicativo), abre TLS até o gateway, repassa o StartupMessage e responde o pedido de senha do gateway com o
 /// access token. Daí em diante, repassa tudo.
 /// </summary>
-public sealed class Sessao(Ambiente ambiente, TokenDoAmbiente token, Opcoes opcoes, SenhaLocal senhaLocal, Registrar registrar)
+public sealed class Sessao(Conexao ambiente, TokenDaConexao token, Opcoes opcoes, SenhaLocal senhaLocal, Registrar registrar)
 {
     public async Task AtenderAsync(TcpClient local, CancellationToken ct)
     {
@@ -78,7 +78,7 @@ public sealed class Sessao(Ambiente ambiente, TokenDoAmbiente token, Opcoes opco
             if (!await senhaLocal.ConfereAsync(new PgReader(senha.Body).CString(), ct))
             {
                 registrar(ambiente, "conexão local recusada: senha local errada");
-                await PgWire.WriteAsync(stream, PgWire.Error("28P01", "senha local errada: use a que aparece na janela do FIX bancos"), ct);
+                await PgWire.WriteAsync(stream, PgWire.Error("28P01", $"senha local errada: use a que aparece na janela do {Opcoes.NomeDoAplicativo}"), ct);
                 return;
             }
 
@@ -90,7 +90,7 @@ public sealed class Sessao(Ambiente ambiente, TokenDoAmbiente token, Opcoes opco
             catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 registrar(ambiente, $"login não concluído: {e.Message}");
-                await PgWire.WriteAsync(stream, PgWire.Error("28000", $"login no navegador não concluído ({e.Message}); veja a janela do FIX bancos"), ct);
+                await PgWire.WriteAsync(stream, PgWire.Error("28000", $"login no navegador não concluído ({e.Message}); veja a janela do {Opcoes.NomeDoAplicativo}"), ct);
                 return;
             }
 

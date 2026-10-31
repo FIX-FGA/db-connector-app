@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DbConnector.Desktop.EditorDeConexao"
+        Title="Conexão"
+        Icon="/Assets/db-connector.ico"
+        Width="560" Height="640" MinWidth="420" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Fundo}">
+
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource CartaoBorda}" BorderThickness="0,1,0,0" Padding="20,12">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="Erros" Foreground="#D64545" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Content="Cancelar" Click="Cancelar" MinWidth="90" HorizontalContentAlignment="Center" />
+          <Button Content="Salvar" Click="Salvar" Classes="principal" MinWidth="90" HorizontalContentAlignment="Center" IsDefault="True" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="20,18" Spacing="4">
+        <StackPanel.Styles>
+          <Style Selector="TextBlock.rotulo">
+            <Setter Property="Margin" Value="0,10,0,4" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+          </Style>
+          <Style Selector="TextBlock.dica">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Foreground" Value="{DynamicResource TextoSecundario}" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+          </Style>
+        </StackPanel.Styles>
+
+        <TextBlock Classes="rotulo" Text="Nome" />
+        <TextBox x:Name="Nome" Watermark="ex.: FIX dev" />
+
+        <TextBlock Classes="rotulo" Text="Emissor (OIDC)" />
+        <TextBox x:Name="Emissor" Watermark="https://sso.exemplo.com/realms/interno" />
+        <TextBlock Classes="dica" Text="No Keycloak, a URL do realm. O login abre no navegador e volta para http://127.0.0.1:15431/callback (cadastre esse redirect no client)." />
+
+        <TextBlock Classes="rotulo" Text="Client ID" />
+        <TextBox x:Name="ClientId" Watermark="ex.: bancos-dev" />
+        <TextBlock Classes="dica" Text="Client público, com PKCE. O token precisa ter a audiência que o gateway confere." />
+
+        <TextBlock Classes="rotulo" Text="Gateway (host e porta)" />
+        <Grid ColumnDefinitions="*,8,110">
+          <TextBox x:Name="Host" Watermark="ex.: dev.bancos.exemplo.com" />
+          <NumericUpDown Grid.Column="2" x:Name="PortaGateway" Minimum="1" Maximum="65535" Increment="1" FormatString="0" Value="5432" />
+        </Grid>
+        <TextBlock Classes="dica" Text="O gateway PostgreSQL do ambiente (TLS), que recebe o seu token de login como senha." />
+
+        <TextBlock Classes="rotulo" Text="Porta local" />
+        <NumericUpDown x:Name="PortaLocal" Minimum="1025" Maximum="65535" Increment="1" FormatString="0" Value="15432" Width="140" HorizontalAlignment="Left" />
+        <TextBlock Classes="dica" Text="Onde o DBeaver conecta (localhost). Uma por conexão." />
+
+        <TextBlock Classes="rotulo" Text="Database padrão (opcional)" />
+        <TextBox x:Name="BancoPadrao" Watermark="ex.: app" />
+
+        <CheckBox x:Name="SoLeitura" Content="Somente leitura (só o rótulo; quem garante é o banco)" Margin="0,12,0,0" />
+
+        <Expander Header="Avançado" Margin="0,12,0,0" HorizontalAlignment="Stretch">
+          <StackPanel>
+            <TextBlock Classes="rotulo" Text="Provedor de identidade direto (opcional)" Margin="0,0,0,4" />
+            <TextBox x:Name="IdpHint" Watermark="ex.: microsoft" />
+            <TextBlock Classes="dica" Text="kc_idp_hint do Keycloak: pula a tela do Keycloak e vai direto ao provedor (ex.: Microsoft)." />
+          </StackPanel>
+        </Expander>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

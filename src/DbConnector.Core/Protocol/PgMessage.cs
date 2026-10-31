@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace Fix.Bancos.Protocol;
+namespace DbConnector.Protocol;
 
 /// <summary>Mensagem do protocolo do PostgreSQL (v3): tipo de 1 byte e corpo; o tamanho vai no fio.</summary>
 public readonly record struct PgMessage(byte Type, byte[] Body)
