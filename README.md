@@ -23,6 +23,11 @@ Baixe da [última release](../../releases/latest) o do seu sistema e confira o `
 | Linux | `fix-bancos-linux-x64` (`chmod +x`) · sem área de trabalho: `fix-bancos-cli-linux-x64` |
 | macOS (Apple Silicon) | `fix-bancos-macos-arm64` (`chmod +x`; na primeira vez, botão direito → Abrir) |
 
+## Desinstalar
+
+O FIX bancos não tem instalador nem altera nada no sistema: para remover, feche a janela e apague o executável (e o
+atalho, se você criou um). Não há configuração nem dados guardados em disco.
+
 ## Usar
 
 1. Abra o FIX bancos. A janela mostra a **senha local** desta sessão e os ambientes.
@@ -68,16 +73,24 @@ Branches: `dev`, `qa` e `master`, como os outros repositórios da FIX-FGA. O CI 
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
 [SignPath Foundation](https://signpath.org/).
 
-- **Committers and reviewers:** members of the [FIX-FGA](https://github.com/FIX-FGA) organization with write access to
-  this repository. Every change reaches `master` through a reviewed pull request.
-- **Approvers:** the repository maintainers (organization owners of FIX-FGA).
-- Only the Windows executable built by this repository's GitHub Actions workflow (`.github/workflows/ci.yml`) from the
-  `master` branch is signed. Signing requests are approved manually by an approver.
-- Multi-factor authentication is required for everyone with write access here and in SignPath.
+Only the Windows executable (`fix-bancos-windows-x64.exe`) built by this repository's GitHub Actions workflow
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) from the `master` branch is signed. Every signing request is
+approved manually.
 
-**Privacy:** this program does not transfer any information to networked systems other than those the user connects
-to: the FIX identity provider (login in the user's browser) and the FIX database gateway of the environment the user
-chooses. It stores nothing on disk; tokens are kept in memory only while the program is open.
+Team roles:
+
+- **Committers and reviewers:** members of the [FIX-FGA developers team](https://github.com/orgs/FIX-FGA/teams/developers).
+  Changes reach `master` only through pull requests, reviewed by a team member.
+- **Approvers:** the [FIX-FGA organization owners](https://github.com/orgs/FIX-FGA/people?query=role%3Aowner)
+  ([@sfourm](https://github.com/sfourm), [@yuridsfga](https://github.com/yuridsfga),
+  [@cristian272001](https://github.com/cristian272001)).
+
+Multi-factor authentication is required for every team member, on GitHub and on SignPath.
+
+**Privacy policy:** this program will not transfer any information to other networked systems unless specifically
+requested by the user. It only talks to the systems the user chooses to connect to: the FIX identity provider (login in
+the user's browser) and the FIX database gateway of the selected environment. It stores nothing on disk; login tokens
+are kept in memory only while the program is open.
 
 ## Assinatura (para quem mantém)
 
