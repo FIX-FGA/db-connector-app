@@ -1,4 +1,4 @@
-# FIX bancos
+# FIX bancos (db-connector-app)
 
 Aplicativo de desktop (Windows, Linux e macOS) para acessar os bancos PostgreSQL dos ambientes do FIX pelo **DBeaver**
 (ou DataGrip, pgAdmin, psql...) com o **login da FIX no navegador**, sem senha de banco e sem port-forward.
@@ -85,7 +85,7 @@ O executável do Windows é assinado pela SignPath Foundation, de graça para pr
 (Controle Inteligente de Aplicativos e SmartScreen) abri-lo sem bloqueio. Configuração, uma vez:
 
 1. Inscrição do projeto em [signpath.org](https://signpath.org/) (formulário de projetos open source).
-2. Na SignPath, projeto `fix-bancos` com o repositório conectado como *trusted build system* (GitHub), a política de
+2. Na SignPath, projeto `db-connector-app` com o repositório conectado como *trusted build system* (GitHub), a política de
    assinatura `release-signing` e a configuração de artefato `windows`:
    ```xml
    <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">

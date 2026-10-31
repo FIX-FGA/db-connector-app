@@ -1,4 +1,4 @@
-# fix-bancos: build e testes em todo push e PR; executáveis de cada sistema como artefato; na master, o executável do
+# db-connector-app (FIX bancos): build e testes em todo push e PR; executáveis de cada sistema como artefato; na master, o executável do
 # Windows é assinado pela SignPath Foundation (quando os secrets existem) e tudo vai para uma release.
 name: ci
 
@@ -102,7 +102,7 @@ jobs:
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: fix-bancos
+          project-slug: db-connector-app
           signing-policy-slug: release-signing
           artifact-configuration-slug: windows
           github-artifact-id: ${{ steps.artefato.outputs.id }}
